@@ -74,11 +74,11 @@ export default function FlipDotDisplay() {
         break;
       case 'direct':
         // Parse direct matrix input (0s and 1s)
-        const lines = inputText.split('\n');
+        const directLines = inputText.split('\n');
         matrix = Array(rows).fill(null).map(() => Array(cols).fill(false));
-        for (let r = 0; r < Math.min(lines.length, rows); r++) {
-          for (let c = 0; c < Math.min(lines[r].length, cols); c++) {
-            matrix[r][c] = lines[r][c] === '1' || lines[r][c] === '*';
+        for (let r = 0; r < Math.min(directLines.length, rows); r++) {
+          for (let c = 0; c < Math.min(directLines[r].length, cols); c++) {
+            matrix[r][c] = directLines[r][c] === '1' || directLines[r][c] === '*';
           }
         }
         break;

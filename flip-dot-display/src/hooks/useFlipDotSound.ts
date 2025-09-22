@@ -30,45 +30,88 @@ class FlipDotSoundManager {
     }
   }
 
-  private createClickSound(frequency: number = 4000, volume: number = 0.3): void {
+  private createFlipDotSound(baseFrequency: number = 1000, volume: number = 0.3, variation: number = 0): void {
     if (!this.audioContext || !this.initialized) return;
 
     const now = this.audioContext.currentTime;
+    const duration = 0.08; // Longer duration for more realistic sound
 
-    // Create oscillator for the click
-    const oscillator = this.audioContext.createOscillator();
-    const gainNode = this.audioContext.createGain();
-    const filter = this.audioContext.createBiquadFilter();
+    // Create noise source for mechanical texture
+    const bufferSize = this.audioContext.sampleRate * duration;
+    const noiseBuffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
 
-    // Configure the click sound
-    oscillator.type = 'square';
-    oscillator.frequency.setValueAtTime(frequency, now);
+    // Generate filtered noise for mechanical sound
+    for (let i = 0; i < bufferSize; i++) {
+      output[i] = (Math.random() * 2 - 1) * 0.3;
+    }
 
-    // Add filter for more realistic mechanical sound
-    filter.type = 'highpass';
-    filter.frequency.setValueAtTime(2000, now);
-    filter.Q.setValueAtTime(10, now);
+    const noiseSource = this.audioContext.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
 
-    // Configure envelope for sharp click
-    gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(volume, now + 0.001);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.01);
-    gainNode.gain.linearRampToValueAtTime(0, now + 0.015);
+    // Create resonant filter for body
+    const bodyFilter = this.audioContext.createBiquadFilter();
+    bodyFilter.type = 'bandpass';
+    bodyFilter.frequency.setValueAtTime(baseFrequency, now);
+    bodyFilter.Q.setValueAtTime(3, now);
 
-    // Connect nodes
-    oscillator.connect(filter);
-    filter.connect(gainNode);
-    gainNode.connect(this.audioContext.destination);
+    // Create high-frequency filter for the initial "snap"
+    const snapOscillator = this.audioContext.createOscillator();
+    const snapFilter = this.audioContext.createBiquadFilter();
+    snapFilter.type = 'lowpass';
+    snapFilter.frequency.setValueAtTime(2000, now);
+    snapFilter.Q.setValueAtTime(1, now);
 
-    // Play the sound
-    oscillator.start(now);
-    oscillator.stop(now + 0.02);
+    snapOscillator.type = 'triangle';
+    snapOscillator.frequency.setValueAtTime(baseFrequency * 2, now);
+
+    // Frequency sweep downward for mechanical settling
+    snapOscillator.frequency.exponentialRampToValueAtTime(baseFrequency * 0.7, now + 0.02);
+
+    // Main gain envelope
+    const mainGain = this.audioContext.createGain();
+    const snapGain = this.audioContext.createGain();
+
+    // Softer attack, longer decay for mechanical feel
+    mainGain.gain.setValueAtTime(0, now);
+    mainGain.gain.linearRampToValueAtTime(volume * 0.6, now + 0.005); // Softer attack
+    mainGain.gain.exponentialRampToValueAtTime(0.01, now + duration * 0.8);
+    mainGain.gain.linearRampToValueAtTime(0, now + duration);
+
+    // Sharp initial snap that fades quickly
+    snapGain.gain.setValueAtTime(0, now);
+    snapGain.gain.linearRampToValueAtTime(volume * 0.4, now + 0.001);
+    snapGain.gain.exponentialRampToValueAtTime(0.01, now + 0.015);
+    snapGain.gain.linearRampToValueAtTime(0, now + 0.02);
+
+    // Connect noise path (main body of sound)
+    noiseSource.connect(bodyFilter);
+    bodyFilter.connect(mainGain);
+    mainGain.connect(this.audioContext.destination);
+
+    // Connect snap path (initial electromagnetic pulse)
+    snapOscillator.connect(snapFilter);
+    snapFilter.connect(snapGain);
+    snapGain.connect(this.audioContext.destination);
+
+    // Start and stop
+    noiseSource.start(now);
+    noiseSource.stop(now + duration);
+
+    snapOscillator.start(now);
+    snapOscillator.stop(now + 0.02);
 
     // Clean up
-    oscillator.onended = () => {
-      oscillator.disconnect();
-      filter.disconnect();
-      gainNode.disconnect();
+    noiseSource.onended = () => {
+      noiseSource.disconnect();
+      bodyFilter.disconnect();
+      mainGain.disconnect();
+    };
+
+    snapOscillator.onended = () => {
+      snapOscillator.disconnect();
+      snapFilter.disconnect();
+      snapGain.disconnect();
     };
   }
 
@@ -95,15 +138,24 @@ class FlipDotSoundManager {
       this.audioContext.resume();
     }
 
-    // Add slight randomization to frequency for natural variation
-    const baseFrequency = 4000;
-    const frequencyVariation = (Math.random() - 0.5) * 800;
-    const frequency = baseFrequency + frequencyVariation;
+    // Create variations for natural sound
+    const soundVariations = [
+      { frequency: 800, variation: 0 },   // Low thud
+      { frequency: 1200, variation: 1 },  // Mid snick
+      { frequency: 950, variation: 2 },   // Slightly higher
+      { frequency: 1100, variation: 3 },  // Balanced
+    ];
 
-    // Convert volume from 0-100 to 0-0.5 range (to prevent being too loud)
-    const audioVolume = (volume / 100) * 0.5;
+    const selectedVariation = soundVariations[Math.floor(Math.random() * soundVariations.length)];
 
-    this.createClickSound(frequency, audioVolume);
+    // Add pitch variation (±15%)
+    const pitchVariation = (Math.random() - 0.5) * 0.3;
+    const frequency = selectedVariation.frequency * (1 + pitchVariation);
+
+    // Convert volume from 0-100 to 0-0.4 range (softer than before)
+    const audioVolume = (volume / 100) * 0.4;
+
+    this.createFlipDotSound(frequency, audioVolume, selectedVariation.variation);
   }
 
   public destroy(): void {
