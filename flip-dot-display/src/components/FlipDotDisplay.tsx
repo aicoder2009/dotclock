@@ -134,10 +134,25 @@ export default function FlipDotDisplay() {
         }
         break;
       case 'clock':
-        const hours = currentTime.getHours().toString().padStart(2, '0');
-        const minutes = currentTime.getMinutes().toString().padStart(2, '0');
-        const seconds = currentTime.getSeconds().toString().padStart(2, '0');
-        const timeString = `${hours}:${minutes}:${seconds}`;
+        let hours: string;
+        let timeString: string;
+
+        if (clockFormat === '12') {
+          // 12-hour format with AM/PM
+          const hour12 = currentTime.getHours();
+          const displayHour = hour12 === 0 ? 12 : hour12 > 12 ? hour12 - 12 : hour12;
+          const ampm = hour12 >= 12 ? 'PM' : 'AM';
+          hours = displayHour.toString().padStart(2, '0');
+          const minutes = currentTime.getMinutes().toString().padStart(2, '0');
+          const seconds = currentTime.getSeconds().toString().padStart(2, '0');
+          timeString = `${hours}:${minutes}:${seconds} ${ampm}`;
+        } else {
+          // 24-hour format
+          hours = currentTime.getHours().toString().padStart(2, '0');
+          const minutes = currentTime.getMinutes().toString().padStart(2, '0');
+          const seconds = currentTime.getSeconds().toString().padStart(2, '0');
+          timeString = `${hours}:${minutes}:${seconds}`;
+        }
         const dateString = currentTime.toLocaleDateString('en-US', {
           weekday: 'short',
           month: 'short',
