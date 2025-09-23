@@ -364,41 +364,6 @@ export default function FlipDotDisplay() {
           </div>
         )}
 
-        {/* Bottom-left: Presets */}
-        <div className="absolute bottom-4 left-4 z-50">
-          <div className="bg-black/40 backdrop-blur-md rounded-2xl border border-gray-700/50 p-3 shadow-2xl">
-            <div className="flex gap-2">
-              <button
-                onClick={() => loadPreset('smile')}
-                className="bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 px-3 py-2 rounded-xl text-sm transition-all"
-                title="Smile"
-              >
-                😊
-              </button>
-              <button
-                onClick={() => loadPreset('heart')}
-                className="bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 px-3 py-2 rounded-xl text-sm transition-all"
-                title="Heart"
-              >
-                ❤️
-              </button>
-              <button
-                onClick={() => loadPreset('wave')}
-                className="bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 px-3 py-2 rounded-xl text-sm transition-all"
-                title="Wave"
-              >
-                〰️
-              </button>
-              <button
-                onClick={() => loadPreset('scrolling')}
-                className="bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 px-3 py-2 rounded-xl text-sm transition-all"
-                title="Text"
-              >
-                ABC
-              </button>
-            </div>
-          </div>
-        </div>
 
         {/* Top-center: Glassmorphism Island Toolbox */}
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
@@ -463,24 +428,58 @@ export default function FlipDotDisplay() {
               </div>
 
               {/* Quick Actions Bar */}
-              {displayMode === 'clock' && (
-                <div className="mt-3 pt-3 border-t border-white/10">
-                  <div className="flex items-center justify-center gap-2">
-                    <button
-                      onClick={() => setDisplayMode('text')}
-                      className="px-3 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs font-mono transition-all"
-                    >
-                      Switch to Text
-                    </button>
-                    <button
-                      onClick={() => setDisplayMode('ascii-art')}
-                      className="px-3 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs font-mono transition-all"
-                    >
-                      Draw ASCII
-                    </button>
-                  </div>
+              <div className="mt-3 pt-3 border-t border-white/10">
+                <div className="flex items-center justify-center gap-2">
+                  {displayMode === 'clock' ? (
+                    <>
+                      <button
+                        onClick={() => setDisplayMode('text')}
+                        className="px-3 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs font-mono transition-all"
+                      >
+                        Switch to Text
+                      </button>
+                      <button
+                        onClick={() => setDisplayMode('ascii-art')}
+                        className="px-3 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs font-mono transition-all"
+                      >
+                        Draw ASCII
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-white/40 text-[10px] font-mono uppercase mr-2">Presets:</span>
+                      <button
+                        onClick={() => loadPreset('smile')}
+                        className="px-2 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs transition-all"
+                        title="Smile Pattern"
+                      >
+                        😊
+                      </button>
+                      <button
+                        onClick={() => loadPreset('heart')}
+                        className="px-2 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs transition-all"
+                        title="Heart Pattern"
+                      >
+                        ❤️
+                      </button>
+                      <button
+                        onClick={() => loadPreset('wave')}
+                        className="px-2 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs transition-all"
+                        title="Wave Pattern"
+                      >
+                        〰️
+                      </button>
+                      <button
+                        onClick={() => loadPreset('scrolling')}
+                        className="px-2 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs transition-all"
+                        title="Text Demo"
+                      >
+                        ABC
+                      </button>
+                    </>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
