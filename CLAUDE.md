@@ -69,6 +69,30 @@ Strict TypeScript configuration with:
 3. **CSS Approach**: Use Tailwind utility classes; avoid inline styles except for dynamic values
 4. **Font Loading**: Use the existing Geist font configuration in layout.tsx for consistency
 
+## Git Commit Guidelines
+
+**Always use short, concise commit titles with detailed descriptions:**
+
+**Format:**
+```
+Short descriptive title (50 chars max)
+
+Detailed description explaining:
+- What changes were made
+- Why the changes were necessary
+- Any breaking changes or important notes
+- Technical implementation details
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+**Examples:**
+- ✅ "Add glassmorphism UI island" (with detailed body)
+- ✅ "Optimize flip animation performance" (with detailed body)
+- ❌ "Add glassmorphism island toolbox UI to top center with matrix info, mode indicators, status display, sound controls, and preset integration"
+
 ## Important Notes
 
 - **No ESLint/Prettier**: Currently no linting configuration; maintain consistent code style manually
