@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 
 interface FlipDotProps {
   isActive: boolean;
@@ -8,25 +8,28 @@ interface FlipDotProps {
   onFlip?: () => void;
 }
 
-export default function FlipDot({ isActive, delay = 0, onFlip }: FlipDotProps) {
+const FlipDot = memo(function FlipDot({ isActive, delay = 0, onFlip }: FlipDotProps) {
   const [isFlipping, setIsFlipping] = useState(false);
   const [currentState, setCurrentState] = useState(isActive);
 
   useEffect(() => {
     if (currentState !== isActive) {
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         setIsFlipping(true);
         // Trigger sound when flip starts
         if (onFlip) {
           onFlip();
         }
-        setTimeout(() => {
+        const flipTimeoutId = setTimeout(() => {
           setCurrentState(isActive);
-          setTimeout(() => {
+          const resetTimeoutId = setTimeout(() => {
             setIsFlipping(false);
-          }, 150);
-        }, 150);
+          }, 100); // Reduced from 150ms to 100ms
+          return () => clearTimeout(resetTimeoutId);
+        }, 100); // Reduced from 150ms to 100ms
+        return () => clearTimeout(flipTimeoutId);
       }, delay);
+      return () => clearTimeout(timeoutId);
     }
   }, [isActive, currentState, delay, onFlip]);
 
@@ -34,7 +37,7 @@ export default function FlipDot({ isActive, delay = 0, onFlip }: FlipDotProps) {
     <div className="relative w-[7px] h-[7px] sm:w-[8px] sm:h-[8px] md:w-[10px] md:h-[10px] lg:w-[12px] lg:h-[12px]">
       <div
         className={`
-          absolute inset-0 rounded-full transition-all duration-300
+          absolute inset-0 rounded-full transition-all duration-200
           ${isFlipping ? 'animate-flip-dot' : ''}
         `}
         style={{
@@ -60,4 +63,6 @@ export default function FlipDot({ isActive, delay = 0, onFlip }: FlipDotProps) {
       )}
     </div>
   );
-}
+});
+
+export default FlipDot;

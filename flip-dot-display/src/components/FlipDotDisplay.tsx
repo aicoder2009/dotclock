@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import FlipDot from './FlipDot';
 import { textToMatrix, asciiArtToMatrix } from '@/lib/asciiFont';
 import { useFlipDotSound } from '@/hooks/useFlipDotSound';
@@ -19,11 +19,14 @@ export default function FlipDotDisplay() {
   const [showVolumeControl, setShowVolumeControl] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [controlsTimeout, setControlsTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isMinimized, setIsMinimized] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const { playSound, soundSettings, setVolume, toggleSound } = useFlipDotSound();
 
-  // Calculate grid dimensions for full viewport coverage
+  // Calculate grid dimensions for full viewport coverage with throttling
   useEffect(() => {
+    let resizeTimeout: NodeJS.Timeout;
+
     const calculateDimensions = () => {
       const dotSize = window.innerWidth > 1024 ? 12 :
                       window.innerWidth > 768 ? 10 :
@@ -36,68 +39,64 @@ export default function FlipDotDisplay() {
       setDimensions({ cols, rows });
     };
 
+    const throttledResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(calculateDimensions, 100);
+    };
+
     calculateDimensions();
-    window.addEventListener('resize', calculateDimensions);
-    return () => window.removeEventListener('resize', calculateDimensions);
+    window.addEventListener('resize', throttledResize, { passive: true });
+    return () => {
+      window.removeEventListener('resize', throttledResize);
+      clearTimeout(resizeTimeout);
+    };
   }, []);
 
-  // Update clock
+  // Update clock with optimized frequency
   useEffect(() => {
     if (displayMode === 'clock') {
       const timer = setInterval(() => {
-        setCurrentTime(new Date());
-      }, 1000);
+        const newTime = new Date();
+        // Only update if seconds have actually changed to reduce re-renders
+        setCurrentTime(prevTime => {
+          if (prevTime.getSeconds() !== newTime.getSeconds()) {
+            return newTime;
+          }
+          return prevTime;
+        });
+      }, 500); // Check more frequently but update less frequently
       return () => clearInterval(timer);
     }
   }, [displayMode]);
 
-  // Auto-hide controls system
+  // UI Island visibility system (no longer auto-hiding)
   const showControlsTemporarily = useCallback(() => {
     setShowControls(true);
+    // Removed auto-hide functionality - UI Island stays visible
+  }, []);
 
-    if (controlsTimeout) {
-      clearTimeout(controlsTimeout);
-    }
-
-    const timeout = setTimeout(() => {
-      setShowControls(false);
-      setShowVolumeControl(false);
-    }, 3000);
-
-    setControlsTimeout(timeout);
-  }, [controlsTimeout]);
-
-  // Show controls on mouse movement or key press
+  // Handle keyboard shortcuts
   useEffect(() => {
-    const handleMouseMove = () => {
-      showControlsTemporarily();
-    };
-
     const handleKeyPress = (event: KeyboardEvent) => {
+      // Toggle UI Island visibility with Space or Escape
       if (event.code === 'Space' || event.code === 'Escape') {
         event.preventDefault();
-        showControlsTemporarily();
+        setShowControls(!showControls);
       }
 
       // Toggle edit mode with Ctrl+E or Cmd+E
       if ((event.ctrlKey || event.metaKey) && event.code === 'KeyE' && displayMode !== 'clock') {
         event.preventDefault();
         setIsEditing(!isEditing);
-        showControlsTemporarily();
       }
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('keydown', handleKeyPress);
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('keydown', handleKeyPress);
-      if (controlsTimeout) {
-        clearTimeout(controlsTimeout);
-      }
     };
-  }, [showControlsTemporarily, controlsTimeout, isEditing, displayMode]);
+  }, [isEditing, displayMode, showControls]);
 
   // Close volume control when clicking outside
   useEffect(() => {
@@ -183,11 +182,23 @@ export default function FlipDotDisplay() {
     updateDisplay();
   }, [updateDisplay]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputText(e.target.value);
-  };
+  }, []);
 
-  const loadPreset = (preset: string) => {
+  const handleModeChange = useCallback((newMode: DisplayMode) => {
+    setDisplayMode(newMode);
+  }, []);
+
+  const handleClockFormatChange = useCallback((format: ClockFormat) => {
+    setClockFormat(format);
+  }, []);
+
+  const handleToggleEditing = useCallback(() => {
+    setIsEditing(!isEditing);
+  }, [isEditing]);
+
+  const loadPreset = useCallback((preset: string) => {
     switch (preset) {
       case 'smile':
         setDisplayMode('ascii-art');
@@ -232,7 +243,7 @@ export default function FlipDotDisplay() {
         setInputText('THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG 1234567890 !@#$%^&*()');
         break;
     }
-  };
+  }, []);
 
   return (
     <div ref={containerRef} className="fixed inset-0 bg-black overflow-hidden">
@@ -240,7 +251,7 @@ export default function FlipDotDisplay() {
 
       {/* Full-Screen Dot Matrix */}
       <div className="absolute inset-0 flex items-center justify-center">
-        <div className={`transition-all duration-300 ease-in-out ${
+        <div className={`transition-all duration-200 ease-in-out ${
           isEditing && displayMode !== 'clock'
             ? 'opacity-100 scale-100'
             : 'opacity-0 scale-95 pointer-events-none absolute'
@@ -268,7 +279,7 @@ export default function FlipDotDisplay() {
           </div>
         </div>
 
-        <div className={`transition-all duration-300 ease-in-out ${
+        <div className={`transition-all duration-200 ease-in-out ${
           !isEditing || displayMode === 'clock'
             ? 'opacity-100 scale-100'
             : 'opacity-0 scale-95 pointer-events-none absolute'
@@ -279,7 +290,9 @@ export default function FlipDotDisplay() {
               gridTemplateColumns: `repeat(${dimensions.cols}, minmax(0, 1fr))`,
               width: '100vw',
               height: '100vh',
-              padding: '5px'
+              padding: '5px',
+              willChange: 'transform',
+              contain: 'layout style paint'
             }}
           >
             {displayMatrix.map((row, rowIndex) =>
@@ -290,7 +303,7 @@ export default function FlipDotDisplay() {
                   Math.pow(rowIndex - centerRow, 2) +
                   Math.pow(colIndex - centerCol, 2)
                 );
-                const delay = distance * 2;
+                const delay = distance * 1; // Reduced from 2 to 1 for faster animations
 
                 return (
                   <FlipDot
@@ -306,8 +319,8 @@ export default function FlipDotDisplay() {
         </div>
       </div>
 
-      {/* Floating Controls */}
-      <div className={`transition-opacity duration-500 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+      {/* UI Island Controls */}
+      <div className={`transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
 
 
         {/* Bottom-right: Premium Edit/Display Toggle */}
@@ -372,12 +385,56 @@ export default function FlipDotDisplay() {
         )}
 
 
-        {/* Clean Top Control Bar */}
+        {/* UI Island - Main Control Center */}
         <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-50">
-          <div className="bg-gray-900/40 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl">
-            <div className="px-6 py-4">
-              {/* Primary Controls Row */}
-              <div className="flex items-center gap-8">
+          <div className={`bg-gray-900/40 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl transition-all duration-300 ease-in-out ${
+            isMinimized ? 'overflow-hidden' : ''
+          }`}>
+            <div className={`${isMinimized ? 'px-3 py-2' : 'px-6 py-4'}`}>
+              {/* UI Island Minimize/Maximize Toggle */}
+              <div className="flex items-start gap-4">
+                <button
+                  onClick={() => setIsMinimized(!isMinimized)}
+                  className="flex-shrink-0 p-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-all duration-200 group"
+                  title={isMinimized ? 'Expand UI Island' : 'Minimize UI Island'}
+                >
+                  <svg
+                    className={`w-4 h-4 text-white/60 group-hover:text-white/90 transition-all duration-200 ${
+                      isMinimized ? 'rotate-180' : ''
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    {isMinimized ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                    )}
+                  </svg>
+                </button>
+
+                {/* UI Island Minimized View - Compact Info */}
+                {isMinimized ? (
+                  <div className="flex items-center gap-4">
+                    <span className="text-white/90 text-sm font-mono font-semibold">
+                      {displayMode === 'clock' && '🕐'}
+                      {displayMode === 'text' && '📝'}
+                      {displayMode === 'ascii-art' && '🎨'}
+                      {displayMode === 'direct' && '⚡'}
+                      {' '}
+                      {displayMode === 'ascii-art' ? 'ASCII' : displayMode.charAt(0).toUpperCase() + displayMode.slice(1)}
+                    </span>
+                    <span className="text-white/60 text-xs">•</span>
+                    <span className="text-white/70 text-xs font-mono">{dimensions.cols}×{dimensions.rows}</span>
+                    <span className="text-white/60 text-xs">•</span>
+                    <div className={`w-2 h-2 rounded-full ${isEditing ? 'bg-amber-400' : 'bg-emerald-400'} ${!isEditing && 'animate-pulse'}`} />
+                  </div>
+                ) : (
+                  <div className="flex-1">
+                    {/* UI Island Primary Controls Row */}
+                    <div className="flex items-center gap-8">
                 {/* Mode Selector */}
                 <div className="flex items-center gap-3">
                   <span className="text-white/50 text-xs font-mono uppercase tracking-wider">Mode</span>
@@ -450,9 +507,9 @@ export default function FlipDotDisplay() {
                 </div>
               </div>
 
-              {/* Secondary Actions (Presets/Mode switches) */}
-              {(displayMode !== 'clock' || displayMode === 'clock') && (
-                <div className="mt-3 pt-3 border-t border-white/10">
+                    {/* UI Island Secondary Actions (Presets/Mode switches) */}
+                    {!isMinimized && (displayMode !== 'clock' || displayMode === 'clock') && (
+                      <div className="mt-3 pt-3 border-t border-white/10">
                   <div className="flex items-center justify-center gap-2">
                     {displayMode === 'clock' ? (
                       <>
@@ -526,7 +583,10 @@ export default function FlipDotDisplay() {
                     )}
                   </div>
                 </div>
-              )}
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
