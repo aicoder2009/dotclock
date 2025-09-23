@@ -15,19 +15,21 @@ export default function FlipDotDisplay() {
   const [isEditing, setIsEditing] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showVolumeControl, setShowVolumeControl] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const [controlsTimeout, setControlsTimeout] = useState<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { playSound, soundSettings, setVolume, toggleSound } = useFlipDotSound();
 
-  // Calculate grid dimensions based on viewport
+  // Calculate grid dimensions for full viewport coverage
   useEffect(() => {
     const calculateDimensions = () => {
-      const dotSize = window.innerWidth > 1024 ? 15 :
-                      window.innerWidth > 768 ? 13 :
-                      window.innerWidth > 640 ? 11 : 9;
-      const gap = 2;
+      const dotSize = window.innerWidth > 1024 ? 12 :
+                      window.innerWidth > 768 ? 10 :
+                      window.innerWidth > 640 ? 8 : 7;
+      const gap = 1.5; // Smaller gap for higher density
 
-      const cols = Math.floor((window.innerWidth - 40) / (dotSize + gap));
-      const rows = Math.floor((window.innerHeight - 200) / (dotSize + gap));
+      const cols = Math.floor((window.innerWidth - 10) / (dotSize + gap));
+      const rows = Math.floor((window.innerHeight - 10) / (dotSize + gap));
 
       setDimensions({ cols, rows });
     };
@@ -46,6 +48,47 @@ export default function FlipDotDisplay() {
       return () => clearInterval(timer);
     }
   }, [displayMode]);
+
+  // Auto-hide controls system
+  const showControlsTemporarily = useCallback(() => {
+    setShowControls(true);
+
+    if (controlsTimeout) {
+      clearTimeout(controlsTimeout);
+    }
+
+    const timeout = setTimeout(() => {
+      setShowControls(false);
+      setShowVolumeControl(false);
+    }, 3000);
+
+    setControlsTimeout(timeout);
+  }, [controlsTimeout]);
+
+  // Show controls on mouse movement or key press
+  useEffect(() => {
+    const handleMouseMove = () => {
+      showControlsTemporarily();
+    };
+
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.code === 'Space' || event.code === 'Escape') {
+        event.preventDefault();
+        showControlsTemporarily();
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('keydown', handleKeyPress);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('keydown', handleKeyPress);
+      if (controlsTimeout) {
+        clearTimeout(controlsTimeout);
+      }
+    };
+  }, [showControlsTemporarily, controlsTimeout]);
 
   // Close volume control when clicking outside
   useEffect(() => {
@@ -186,116 +229,11 @@ export default function FlipDotDisplay() {
     <div ref={containerRef} className="fixed inset-0 bg-black overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-gray-950 via-black to-gray-950" />
 
-      {/* Control Panel */}
-      <div className="relative z-10 p-4 bg-gray-900/90 backdrop-blur-sm border-b border-gray-800">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <div className="flex items-center gap-4">
-            <h1 className="text-yellow-400 font-mono font-bold text-lg">FLIP DOT MATRIX</h1>
-            <span className="text-gray-500 text-sm font-mono">{dimensions.cols}×{dimensions.rows}</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <select
-              value={displayMode}
-              onChange={(e) => setDisplayMode(e.target.value as DisplayMode)}
-              className="bg-gray-800 text-gray-300 px-3 py-1 rounded font-mono text-sm border border-gray-700"
-            >
-              <option value="clock">Clock Mode</option>
-              <option value="text">Text Mode</option>
-              <option value="ascii-art">ASCII Art</option>
-              <option value="direct">Direct Matrix</option>
-            </select>
-
-            {displayMode !== 'clock' && (
-              <button
-                onClick={() => setIsEditing(!isEditing)}
-                className="bg-yellow-500 text-black px-4 py-1 rounded font-mono text-sm hover:bg-yellow-400 transition-colors"
-              >
-                {isEditing ? 'DISPLAY' : 'EDIT'}
-              </button>
-            )}
-
-            {/* Sound Controls */}
-            <div className="relative flex items-center gap-2 volume-control-container">
-              <button
-                onClick={toggleSound}
-                className={`p-1.5 rounded transition-colors ${
-                  soundSettings.enabled
-                    ? 'bg-gray-700 text-yellow-400 hover:bg-gray-600'
-                    : 'bg-gray-800 text-gray-500 hover:bg-gray-700'
-                }`}
-                title={soundSettings.enabled ? 'Mute' : 'Unmute'}
-              >
-                {soundSettings.enabled ? '🔊' : '🔇'}
-              </button>
-
-              <button
-                onClick={() => setShowVolumeControl(!showVolumeControl)}
-                className="bg-gray-800 text-gray-300 px-2 py-1 rounded text-xs hover:bg-gray-700"
-                title="Volume Control"
-              >
-                VOL
-              </button>
-
-              {showVolumeControl && (
-                <div className="absolute top-full mt-2 right-0 bg-gray-900 border border-gray-700 rounded-lg p-3 z-20 shadow-xl">
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-400 text-xs font-mono">Volume:</span>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={soundSettings.volume}
-                      onChange={(e) => setVolume(Number(e.target.value))}
-                      className="w-24 accent-yellow-400"
-                    />
-                    <span className="text-gray-300 text-xs font-mono w-8">
-                      {soundSettings.volume}%
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-1 ml-2">
-              <button
-                onClick={() => loadPreset('smile')}
-                className="bg-gray-800 text-gray-300 px-2 py-1 rounded text-xs hover:bg-gray-700"
-                title="Smile"
-              >
-                😊
-              </button>
-              <button
-                onClick={() => loadPreset('heart')}
-                className="bg-gray-800 text-gray-300 px-2 py-1 rounded text-xs hover:bg-gray-700"
-                title="Heart"
-              >
-                ❤️
-              </button>
-              <button
-                onClick={() => loadPreset('wave')}
-                className="bg-gray-800 text-gray-300 px-2 py-1 rounded text-xs hover:bg-gray-700"
-                title="Wave"
-              >
-                〰️
-              </button>
-              <button
-                onClick={() => loadPreset('scrolling')}
-                className="bg-gray-800 text-gray-300 px-2 py-1 rounded text-xs hover:bg-gray-700"
-                title="Text"
-              >
-                ABC
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Display Area */}
-      <div className="relative w-full h-[calc(100%-80px)] flex items-center justify-center p-4">
+      {/* Full-Screen Dot Matrix */}
+      <div className="absolute inset-0 flex items-center justify-center">
         {isEditing && displayMode !== 'clock' ? (
-          <div className="w-full max-w-4xl h-full flex flex-col gap-4">
-            <div className="text-gray-400 font-mono text-sm">
+          <div className="w-full max-w-4xl h-full flex flex-col items-center justify-center gap-4 p-8">
+            <div className="text-gray-400 font-mono text-sm text-center">
               {displayMode === 'text' && 'Enter text to display (supports all ASCII characters):'}
               {displayMode === 'ascii-art' && 'Draw with any characters (non-space = lit dot):'}
               {displayMode === 'direct' && 'Enter matrix (1 or * = on, 0 or space = off):'}
@@ -303,7 +241,7 @@ export default function FlipDotDisplay() {
             <textarea
               value={inputText}
               onChange={handleInputChange}
-              className="flex-1 bg-gray-900 text-green-400 font-mono p-4 rounded border border-gray-700 resize-none"
+              className="w-full h-96 bg-gray-900/80 backdrop-blur-sm text-green-400 font-mono p-4 rounded-xl border border-gray-700/50 resize-none"
               placeholder={
                 displayMode === 'text' ? 'Type your message here...' :
                 displayMode === 'ascii-art' ? 'Draw your ASCII art here...' :
@@ -311,15 +249,18 @@ export default function FlipDotDisplay() {
               }
               spellCheck={false}
             />
-            <div className="text-gray-500 text-xs font-mono">
+            <div className="text-gray-500 text-xs font-mono text-center">
               Press DISPLAY to see your creation on the flip-dot matrix
             </div>
           </div>
         ) : (
           <div
-            className="grid gap-[2px]"
+            className="grid gap-[1.5px]"
             style={{
-              gridTemplateColumns: `repeat(${dimensions.cols}, minmax(0, 1fr))`
+              gridTemplateColumns: `repeat(${dimensions.cols}, minmax(0, 1fr))`,
+              width: '100vw',
+              height: '100vh',
+              padding: '5px'
             }}
           >
             {displayMatrix.map((row, rowIndex) =>
@@ -344,6 +285,206 @@ export default function FlipDotDisplay() {
             )}
           </div>
         )}
+      </div>
+
+      {/* Floating Controls */}
+      <div className={`transition-opacity duration-500 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+
+        {/* Top-left: Mode Selector */}
+        <div className="absolute top-4 left-4 z-50">
+          <div className="bg-black/40 backdrop-blur-md rounded-2xl border border-gray-700/50 p-3 shadow-2xl">
+            <select
+              value={displayMode}
+              onChange={(e) => setDisplayMode(e.target.value as DisplayMode)}
+              className="bg-gray-800/80 text-gray-300 px-3 py-2 rounded-xl font-mono text-sm border border-gray-600/50 backdrop-blur-sm"
+            >
+              <option value="clock">🕐 Clock</option>
+              <option value="text">📝 Text</option>
+              <option value="ascii-art">🎨 ASCII Art</option>
+              <option value="direct">⚡ Direct</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Top-right: Sound Controls */}
+        <div className="absolute top-4 right-4 z-50">
+          <div className="bg-black/40 backdrop-blur-md rounded-2xl border border-gray-700/50 p-3 shadow-2xl volume-control-container">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={toggleSound}
+                className={`p-2 rounded-xl transition-all ${
+                  soundSettings.enabled
+                    ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
+                    : 'bg-gray-700/50 text-gray-500 hover:bg-gray-600/50'
+                }`}
+                title={soundSettings.enabled ? 'Mute' : 'Unmute'}
+              >
+                {soundSettings.enabled ? '🔊' : '🔇'}
+              </button>
+
+              <button
+                onClick={() => setShowVolumeControl(!showVolumeControl)}
+                className="bg-gray-700/50 text-gray-300 px-3 py-2 rounded-xl text-xs hover:bg-gray-600/50 transition-all"
+                title="Volume Control"
+              >
+                VOL
+              </button>
+
+              {showVolumeControl && (
+                <div className="absolute top-full mt-2 right-0 bg-black/60 backdrop-blur-md border border-gray-700/50 rounded-xl p-4 z-20 shadow-2xl">
+                  <div className="flex items-center gap-3">
+                    <span className="text-gray-400 text-xs font-mono">Volume:</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={soundSettings.volume}
+                      onChange={(e) => setVolume(Number(e.target.value))}
+                      className="w-24 accent-yellow-400"
+                    />
+                    <span className="text-gray-300 text-xs font-mono w-8">
+                      {soundSettings.volume}%
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom-right: Edit Button */}
+        {displayMode !== 'clock' && (
+          <div className="absolute bottom-4 right-4 z-50">
+            <button
+              onClick={() => setIsEditing(!isEditing)}
+              className="bg-yellow-500/90 backdrop-blur-md text-black px-6 py-3 rounded-2xl font-mono text-sm hover:bg-yellow-400/90 transition-all shadow-2xl border border-yellow-400/50"
+            >
+              {isEditing ? '👁️ DISPLAY' : '✏️ EDIT'}
+            </button>
+          </div>
+        )}
+
+        {/* Bottom-left: Presets */}
+        <div className="absolute bottom-4 left-4 z-50">
+          <div className="bg-black/40 backdrop-blur-md rounded-2xl border border-gray-700/50 p-3 shadow-2xl">
+            <div className="flex gap-2">
+              <button
+                onClick={() => loadPreset('smile')}
+                className="bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 px-3 py-2 rounded-xl text-sm transition-all"
+                title="Smile"
+              >
+                😊
+              </button>
+              <button
+                onClick={() => loadPreset('heart')}
+                className="bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 px-3 py-2 rounded-xl text-sm transition-all"
+                title="Heart"
+              >
+                ❤️
+              </button>
+              <button
+                onClick={() => loadPreset('wave')}
+                className="bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 px-3 py-2 rounded-xl text-sm transition-all"
+                title="Wave"
+              >
+                〰️
+              </button>
+              <button
+                onClick={() => loadPreset('scrolling')}
+                className="bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 px-3 py-2 rounded-xl text-sm transition-all"
+                title="Text"
+              >
+                ABC
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Top-center: Glassmorphism Island Toolbox */}
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden">
+            {/* Glass effect overlay */}
+            <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-transparent pointer-events-none" />
+
+            {/* Content */}
+            <div className="relative px-6 py-4">
+              <div className="flex items-center gap-6">
+                {/* Matrix Display */}
+                <div className="flex flex-col items-center">
+                  <span className="text-yellow-400/80 text-[10px] font-mono uppercase tracking-wider">Matrix</span>
+                  <span className="text-white/90 text-sm font-mono font-bold">{dimensions.cols}×{dimensions.rows}</span>
+                </div>
+
+                {/* Divider */}
+                <div className="w-px h-8 bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+
+                {/* Current Mode */}
+                <div className="flex flex-col items-center">
+                  <span className="text-yellow-400/80 text-[10px] font-mono uppercase tracking-wider">Mode</span>
+                  <span className="text-white/90 text-sm font-bold capitalize">
+                    {displayMode === 'clock' && '🕐'}
+                    {displayMode === 'text' && '📝'}
+                    {displayMode === 'ascii-art' && '🎨'}
+                    {displayMode === 'direct' && '⚡'}
+                    {' '}
+                    {displayMode === 'ascii-art' ? 'ASCII' : displayMode}
+                  </span>
+                </div>
+
+                {/* Divider */}
+                <div className="w-px h-8 bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+
+                {/* Status Indicator */}
+                <div className="flex flex-col items-center">
+                  <span className="text-yellow-400/80 text-[10px] font-mono uppercase tracking-wider">Status</span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <div className={`w-2 h-2 rounded-full ${isEditing ? 'bg-orange-400' : 'bg-green-400'} shadow-lg ${!isEditing && 'animate-pulse'}`} />
+                    <span className="text-white/90 text-sm font-bold">
+                      {isEditing ? 'Editing' : 'Active'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="w-px h-8 bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+
+                {/* Sound Status */}
+                <div className="flex flex-col items-center">
+                  <span className="text-yellow-400/80 text-[10px] font-mono uppercase tracking-wider">Sound</span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-white/90 text-sm">
+                      {soundSettings.enabled ? '🔊' : '🔇'}
+                    </span>
+                    <span className="text-white/60 text-xs font-mono">
+                      {soundSettings.enabled ? `${soundSettings.volume}%` : 'OFF'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions Bar */}
+              {displayMode === 'clock' && (
+                <div className="mt-3 pt-3 border-t border-white/10">
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => setDisplayMode('text')}
+                      className="px-3 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs font-mono transition-all"
+                    >
+                      Switch to Text
+                    </button>
+                    <button
+                      onClick={() => setDisplayMode('ascii-art')}
+                      className="px-3 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs font-mono transition-all"
+                    >
+                      Draw ASCII
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );

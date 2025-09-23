@@ -31,7 +31,7 @@ export default function FlipDot({ isActive, delay = 0, onFlip }: FlipDotProps) {
   }, [isActive, currentState, delay, onFlip]);
 
   return (
-    <div className="relative w-[7px] h-[7px] sm:w-[9px] sm:h-[9px] md:w-[11px] md:h-[11px] lg:w-[13px] lg:h-[13px]">
+    <div className="relative w-[7px] h-[7px] sm:w-[8px] sm:h-[8px] md:w-[10px] md:h-[10px] lg:w-[12px] lg:h-[12px]">
       <div
         className={`
           absolute inset-0 rounded-full transition-all duration-300
