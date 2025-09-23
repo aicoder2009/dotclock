@@ -6,12 +6,14 @@ import { textToMatrix, asciiArtToMatrix } from '@/lib/asciiFont';
 import { useFlipDotSound } from '@/hooks/useFlipDotSound';
 
 type DisplayMode = 'text' | 'ascii-art' | 'direct' | 'clock';
+type ClockFormat = '12' | '24';
 
 export default function FlipDotDisplay() {
   const [displayMatrix, setDisplayMatrix] = useState<boolean[][]>([]);
   const [dimensions, setDimensions] = useState({ cols: 0, rows: 0 });
   const [inputText, setInputText] = useState('HELLO WORLD\nFLIP DOT DISPLAY');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('clock');
+  const [clockFormat, setClockFormat] = useState<ClockFormat>('24');
   const [isEditing, setIsEditing] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showVolumeControl, setShowVolumeControl] = useState(false);
@@ -76,6 +78,13 @@ export default function FlipDotDisplay() {
         event.preventDefault();
         showControlsTemporarily();
       }
+
+      // Toggle edit mode with Ctrl+E or Cmd+E
+      if ((event.ctrlKey || event.metaKey) && event.code === 'KeyE' && displayMode !== 'clock') {
+        event.preventDefault();
+        setIsEditing(!isEditing);
+        showControlsTemporarily();
+      }
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -88,7 +97,7 @@ export default function FlipDotDisplay() {
         clearTimeout(controlsTimeout);
       }
     };
-  }, [showControlsTemporarily, controlsTimeout]);
+  }, [showControlsTemporarily, controlsTimeout, isEditing, displayMode]);
 
   // Close volume control when clicking outside
   useEffect(() => {
@@ -168,7 +177,7 @@ export default function FlipDotDisplay() {
     }
 
     setDisplayMatrix(matrix);
-  }, [dimensions, inputText, displayMode, currentTime]);
+  }, [dimensions, inputText, displayMode, currentTime, clockFormat]);
 
   useEffect(() => {
     updateDisplay();
@@ -231,7 +240,11 @@ export default function FlipDotDisplay() {
 
       {/* Full-Screen Dot Matrix */}
       <div className="absolute inset-0 flex items-center justify-center">
-        {isEditing && displayMode !== 'clock' ? (
+        <div className={`transition-all duration-300 ease-in-out ${
+          isEditing && displayMode !== 'clock'
+            ? 'opacity-100 scale-100'
+            : 'opacity-0 scale-95 pointer-events-none absolute'
+        }`}>
           <div className="w-full max-w-4xl h-full flex flex-col items-center justify-center gap-4 p-8">
             <div className="text-gray-400 font-mono text-sm text-center">
               {displayMode === 'text' && 'Enter text to display (supports all ASCII characters):'}
@@ -241,7 +254,7 @@ export default function FlipDotDisplay() {
             <textarea
               value={inputText}
               onChange={handleInputChange}
-              className="w-full h-96 bg-gray-900/80 backdrop-blur-sm text-green-400 font-mono p-4 rounded-xl border border-gray-700/50 resize-none"
+              className="w-full h-96 bg-gray-900/80 backdrop-blur-sm text-green-400 font-mono p-4 rounded-xl border border-gray-700/50 resize-none transition-all duration-200"
               placeholder={
                 displayMode === 'text' ? 'Type your message here...' :
                 displayMode === 'ascii-art' ? 'Draw your ASCII art here...' :
@@ -250,10 +263,16 @@ export default function FlipDotDisplay() {
               spellCheck={false}
             />
             <div className="text-gray-500 text-xs font-mono text-center">
-              Press DISPLAY to see your creation on the flip-dot matrix
+              Use Ctrl+E to toggle back to display mode
             </div>
           </div>
-        ) : (
+        </div>
+
+        <div className={`transition-all duration-300 ease-in-out ${
+          !isEditing || displayMode === 'clock'
+            ? 'opacity-100 scale-100'
+            : 'opacity-0 scale-95 pointer-events-none absolute'
+        }`}>
           <div
             className="grid gap-[1.5px]"
             style={{
@@ -284,202 +303,230 @@ export default function FlipDotDisplay() {
               })
             )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Floating Controls */}
       <div className={`transition-opacity duration-500 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
 
-        {/* Top-left: Mode Selector */}
-        <div className="absolute top-4 left-4 z-50">
-          <div className="bg-black/40 backdrop-blur-md rounded-2xl border border-gray-700/50 p-3 shadow-2xl">
-            <select
-              value={displayMode}
-              onChange={(e) => setDisplayMode(e.target.value as DisplayMode)}
-              className="bg-gray-800/80 text-gray-300 px-3 py-2 rounded-xl font-mono text-sm border border-gray-600/50 backdrop-blur-sm"
-            >
-              <option value="clock">🕐 Clock</option>
-              <option value="text">📝 Text</option>
-              <option value="ascii-art">🎨 ASCII Art</option>
-              <option value="direct">⚡ Direct</option>
-            </select>
-          </div>
-        </div>
 
-        {/* Top-right: Sound Controls */}
-        <div className="absolute top-4 right-4 z-50">
-          <div className="bg-black/40 backdrop-blur-md rounded-2xl border border-gray-700/50 p-3 shadow-2xl volume-control-container">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={toggleSound}
-                className={`p-2 rounded-xl transition-all ${
-                  soundSettings.enabled
-                    ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
-                    : 'bg-gray-700/50 text-gray-500 hover:bg-gray-600/50'
-                }`}
-                title={soundSettings.enabled ? 'Mute' : 'Unmute'}
-              >
-                {soundSettings.enabled ? '🔊' : '🔇'}
-              </button>
-
-              <button
-                onClick={() => setShowVolumeControl(!showVolumeControl)}
-                className="bg-gray-700/50 text-gray-300 px-3 py-2 rounded-xl text-xs hover:bg-gray-600/50 transition-all"
-                title="Volume Control"
-              >
-                VOL
-              </button>
-
-              {showVolumeControl && (
-                <div className="absolute top-full mt-2 right-0 bg-black/60 backdrop-blur-md border border-gray-700/50 rounded-xl p-4 z-20 shadow-2xl">
-                  <div className="flex items-center gap-3">
-                    <span className="text-gray-400 text-xs font-mono">Volume:</span>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={soundSettings.volume}
-                      onChange={(e) => setVolume(Number(e.target.value))}
-                      className="w-24 accent-yellow-400"
-                    />
-                    <span className="text-gray-300 text-xs font-mono w-8">
-                      {soundSettings.volume}%
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom-right: Edit Button */}
+        {/* Bottom-right: Premium Edit/Display Toggle */}
         {displayMode !== 'clock' && (
           <div className="absolute bottom-4 right-4 z-50">
-            <button
-              onClick={() => setIsEditing(!isEditing)}
-              className="bg-yellow-500/90 backdrop-blur-md text-black px-6 py-3 rounded-2xl font-mono text-sm hover:bg-yellow-400/90 transition-all shadow-2xl border border-yellow-400/50"
-            >
-              {isEditing ? '👁️ DISPLAY' : '✏️ EDIT'}
-            </button>
+            <div className="group bg-gray-900/20 backdrop-blur-2xl rounded-3xl border border-white/10 p-5 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:bg-gray-900/30">
+              {/* State indicator and label */}
+              <div className="flex items-center gap-4">
+                <div className="flex flex-col items-end min-w-0">
+                  <div className="text-white/40 text-[9px] font-mono uppercase tracking-[0.1em] mb-1">Mode</div>
+                  <div className={`text-sm font-semibold transition-all duration-300 ${
+                    isEditing
+                      ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]'
+                      : 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]'
+                  }`}>
+                    {isEditing ? 'Edit' : 'View'}
+                  </div>
+                </div>
+
+                {/* Premium toggle switch */}
+                <button
+                  onClick={() => setIsEditing(!isEditing)}
+                  className="relative w-14 h-8 rounded-full transition-all duration-300 ease-out group-hover:scale-[1.05] focus:outline-none focus:ring-2 focus:ring-white/30 focus:ring-offset-2 focus:ring-offset-transparent"
+                  style={{
+                    background: isEditing
+                      ? 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%)'
+                      : 'linear-gradient(135deg, #34d399 0%, #10b981 50%, #059669 100%)',
+                    boxShadow: isEditing
+                      ? '0 6px 20px -2px rgba(251, 191, 36, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+                      : '0 6px 20px -2px rgba(52, 211, 153, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+                  }}
+                  title={`Switch to ${isEditing ? 'View' : 'Edit'} mode (⌘E)`}
+                >
+                  {/* Sliding indicator */}
+                  <div
+                    className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-lg transition-all duration-300 ease-out transform ${
+                      isEditing ? 'translate-x-7' : 'translate-x-1'
+                    }`}
+                    style={{
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+                    }}
+                  >
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className={`text-xs transition-all duration-200 ${
+                        isEditing ? 'text-amber-600' : 'text-emerald-600'
+                      }`}>
+                        {isEditing ? '✏' : '👁'}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Keyboard shortcut hint (appears on hover) */}
+                <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+                  <div className="bg-black/60 backdrop-blur-lg px-2.5 py-1.5 rounded-xl border border-white/10 shadow-lg">
+                    <span className="text-white/60 text-[10px] font-mono tracking-wider">⌘E</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
 
-        {/* Top-center: Glassmorphism Island Toolbox */}
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
-          <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden">
-            {/* Glass effect overlay */}
-            <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-transparent pointer-events-none" />
-
-            {/* Content */}
-            <div className="relative px-6 py-4">
-              <div className="flex items-center gap-6">
-                {/* Matrix Display */}
-                <div className="flex flex-col items-center">
-                  <span className="text-yellow-400/80 text-[10px] font-mono uppercase tracking-wider">Matrix</span>
-                  <span className="text-white/90 text-sm font-mono font-bold">{dimensions.cols}×{dimensions.rows}</span>
+        {/* Clean Top Control Bar */}
+        <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="bg-gray-900/40 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl">
+            <div className="px-6 py-4">
+              {/* Primary Controls Row */}
+              <div className="flex items-center gap-8">
+                {/* Mode Selector */}
+                <div className="flex items-center gap-3">
+                  <span className="text-white/50 text-xs font-mono uppercase tracking-wider">Mode</span>
+                  <select
+                    value={displayMode}
+                    onChange={(e) => setDisplayMode(e.target.value as DisplayMode)}
+                    className="bg-gray-800/60 text-white px-3 py-1.5 rounded-lg font-mono text-sm border border-gray-600/30 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-white/20"
+                  >
+                    <option value="clock">🕐 Clock</option>
+                    <option value="text">📝 Text</option>
+                    <option value="ascii-art">🎨 ASCII</option>
+                    <option value="direct">⚡ Direct</option>
+                  </select>
                 </div>
 
-                {/* Divider */}
-                <div className="w-px h-8 bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+                {/* Matrix Info */}
+                <div className="flex items-center gap-2">
+                  <span className="text-white/50 text-xs font-mono">Matrix</span>
+                  <span className="text-white/90 text-sm font-mono font-semibold">{dimensions.cols}×{dimensions.rows}</span>
+                </div>
 
-                {/* Current Mode */}
-                <div className="flex flex-col items-center">
-                  <span className="text-yellow-400/80 text-[10px] font-mono uppercase tracking-wider">Mode</span>
-                  <span className="text-white/90 text-sm font-bold capitalize">
-                    {displayMode === 'clock' && '🕐'}
-                    {displayMode === 'text' && '📝'}
-                    {displayMode === 'ascii-art' && '🎨'}
-                    {displayMode === 'direct' && '⚡'}
-                    {' '}
-                    {displayMode === 'ascii-art' ? 'ASCII' : displayMode}
+                {/* Status */}
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${isEditing ? 'bg-amber-400' : 'bg-emerald-400'} ${!isEditing && 'animate-pulse'}`} />
+                  <span className={`text-sm font-medium ${
+                    isEditing ? 'text-amber-400' : 'text-emerald-400'
+                  }`}>
+                    {isEditing ? 'Editing' : 'Active'}
                   </span>
                 </div>
 
-                {/* Divider */}
-                <div className="w-px h-8 bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+                {/* Sound Controls */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={toggleSound}
+                    className={`p-2 rounded-lg transition-all ${
+                      soundSettings.enabled
+                        ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
+                        : 'bg-gray-700/50 text-gray-400 hover:bg-gray-600/50'
+                    }`}
+                    title={soundSettings.enabled ? 'Mute' : 'Unmute'}
+                  >
+                    {soundSettings.enabled ? '🔊' : '🔇'}
+                  </button>
 
-                {/* Status Indicator */}
-                <div className="flex flex-col items-center">
-                  <span className="text-yellow-400/80 text-[10px] font-mono uppercase tracking-wider">Status</span>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <div className={`w-2 h-2 rounded-full ${isEditing ? 'bg-orange-400' : 'bg-green-400'} shadow-lg ${!isEditing && 'animate-pulse'}`} />
-                    <span className="text-white/90 text-sm font-bold">
-                      {isEditing ? 'Editing' : 'Active'}
-                    </span>
-                  </div>
-                </div>
+                  <div className="relative volume-control-container">
+                    <button
+                      onClick={() => setShowVolumeControl(!showVolumeControl)}
+                      className="bg-gray-700/50 text-gray-300 px-2 py-1 rounded-lg text-xs hover:bg-gray-600/50 transition-all"
+                      title="Volume"
+                    >
+                      {soundSettings.volume}%
+                    </button>
 
-                {/* Divider */}
-                <div className="w-px h-8 bg-gradient-to-b from-transparent via-white/20 to-transparent" />
-
-                {/* Sound Status */}
-                <div className="flex flex-col items-center">
-                  <span className="text-yellow-400/80 text-[10px] font-mono uppercase tracking-wider">Sound</span>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-white/90 text-sm">
-                      {soundSettings.enabled ? '🔊' : '🔇'}
-                    </span>
-                    <span className="text-white/60 text-xs font-mono">
-                      {soundSettings.enabled ? `${soundSettings.volume}%` : 'OFF'}
-                    </span>
+                    {showVolumeControl && (
+                      <div className="absolute top-full mt-2 right-0 bg-gray-900/80 backdrop-blur-xl border border-white/10 rounded-lg p-3 shadow-xl z-20">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={soundSettings.volume}
+                            onChange={(e) => setVolume(Number(e.target.value))}
+                            className="w-20 accent-yellow-400"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Quick Actions Bar */}
-              <div className="mt-3 pt-3 border-t border-white/10">
-                <div className="flex items-center justify-center gap-2">
-                  {displayMode === 'clock' ? (
-                    <>
-                      <button
-                        onClick={() => setDisplayMode('text')}
-                        className="px-3 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs font-mono transition-all"
-                      >
-                        Switch to Text
-                      </button>
-                      <button
-                        onClick={() => setDisplayMode('ascii-art')}
-                        className="px-3 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs font-mono transition-all"
-                      >
-                        Draw ASCII
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-white/40 text-[10px] font-mono uppercase mr-2">Presets:</span>
-                      <button
-                        onClick={() => loadPreset('smile')}
-                        className="px-2 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs transition-all"
-                        title="Smile Pattern"
-                      >
-                        😊
-                      </button>
-                      <button
-                        onClick={() => loadPreset('heart')}
-                        className="px-2 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs transition-all"
-                        title="Heart Pattern"
-                      >
-                        ❤️
-                      </button>
-                      <button
-                        onClick={() => loadPreset('wave')}
-                        className="px-2 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs transition-all"
-                        title="Wave Pattern"
-                      >
-                        〰️
-                      </button>
-                      <button
-                        onClick={() => loadPreset('scrolling')}
-                        className="px-2 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs transition-all"
-                        title="Text Demo"
-                      >
-                        ABC
-                      </button>
-                    </>
-                  )}
+              {/* Secondary Actions (Presets/Mode switches) */}
+              {(displayMode !== 'clock' || displayMode === 'clock') && (
+                <div className="mt-3 pt-3 border-t border-white/10">
+                  <div className="flex items-center justify-center gap-2">
+                    {displayMode === 'clock' ? (
+                      <>
+                        <span className="text-white/40 text-[10px] font-mono uppercase mr-2">Format:</span>
+                        <button
+                          onClick={() => setClockFormat('24')}
+                          className={`px-3 py-1 rounded-lg text-xs transition-all ${
+                            clockFormat === '24'
+                              ? 'bg-blue-500/20 text-blue-400 border border-blue-400/30'
+                              : 'bg-white/5 hover:bg-white/10 text-white/70 hover:text-white'
+                          }`}
+                        >
+                          24 Hour
+                        </button>
+                        <button
+                          onClick={() => setClockFormat('12')}
+                          className={`px-3 py-1 rounded-lg text-xs transition-all ${
+                            clockFormat === '12'
+                              ? 'bg-blue-500/20 text-blue-400 border border-blue-400/30'
+                              : 'bg-white/5 hover:bg-white/10 text-white/70 hover:text-white'
+                          }`}
+                        >
+                          12 Hour
+                        </button>
+                        <div className="w-px h-4 bg-white/20 mx-1" />
+                        <button
+                          onClick={() => setDisplayMode('text')}
+                          className="px-3 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs transition-all"
+                        >
+                          Text Mode
+                        </button>
+                        <button
+                          onClick={() => setDisplayMode('ascii-art')}
+                          className="px-3 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs transition-all"
+                        >
+                          ASCII Art
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-white/40 text-[10px] font-mono uppercase mr-2">Quick:</span>
+                        <button
+                          onClick={() => loadPreset('smile')}
+                          className="px-2 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs transition-all"
+                          title="Smile"
+                        >
+                          😊
+                        </button>
+                        <button
+                          onClick={() => loadPreset('heart')}
+                          className="px-2 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs transition-all"
+                          title="Heart"
+                        >
+                          ❤️
+                        </button>
+                        <button
+                          onClick={() => loadPreset('wave')}
+                          className="px-2 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs transition-all"
+                          title="Wave"
+                        >
+                          〰️
+                        </button>
+                        <button
+                          onClick={() => loadPreset('scrolling')}
+                          className="px-2 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white text-xs transition-all"
+                          title="Demo Text"
+                        >
+                          ABC
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
