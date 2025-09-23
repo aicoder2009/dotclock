@@ -417,19 +417,35 @@ export default function FlipDotDisplay() {
 
                 {/* UI Island Minimized View - Compact Info */}
                 {isMinimized ? (
-                  <div className="flex items-center gap-4">
-                    <span className="text-white/90 text-sm font-mono font-semibold">
-                      {displayMode === 'clock' && '🕐'}
-                      {displayMode === 'text' && '📝'}
-                      {displayMode === 'ascii-art' && '🎨'}
-                      {displayMode === 'direct' && '⚡'}
-                      {' '}
-                      {displayMode === 'ascii-art' ? 'ASCII' : displayMode.charAt(0).toUpperCase() + displayMode.slice(1)}
-                    </span>
-                    <span className="text-white/60 text-xs">•</span>
-                    <span className="text-white/70 text-xs font-mono">{dimensions.cols}×{dimensions.rows}</span>
-                    <span className="text-white/60 text-xs">•</span>
-                    <div className={`w-2 h-2 rounded-full ${isEditing ? 'bg-amber-400' : 'bg-emerald-400'} ${!isEditing && 'animate-pulse'}`} />
+                  <div className="flex items-center gap-3">
+                    {/* Mode indicator with better styling */}
+                    <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
+                      <span className="text-lg">
+                        {displayMode === 'clock' && '🕐'}
+                        {displayMode === 'text' && '📝'}
+                        {displayMode === 'ascii-art' && '🎨'}
+                        {displayMode === 'direct' && '⚡'}
+                      </span>
+                      <span className="text-white/90 text-sm font-mono font-semibold">
+                        {displayMode === 'ascii-art' ? 'ASCII' : displayMode.charAt(0).toUpperCase() + displayMode.slice(1)}
+                      </span>
+                    </div>
+
+                    {/* Matrix dimensions with better visual hierarchy */}
+                    <div className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1.5 rounded-lg border border-white/10">
+                      <span className="text-white/50 text-[10px] font-mono uppercase tracking-wider">Grid</span>
+                      <span className="text-white/90 text-sm font-mono font-bold">{dimensions.cols}×{dimensions.rows}</span>
+                    </div>
+
+                    {/* Status indicator with label */}
+                    <div className="flex items-center gap-2 bg-white/5 px-2.5 py-1.5 rounded-lg border border-white/10">
+                      <div className={`w-2 h-2 rounded-full ${isEditing ? 'bg-amber-400' : 'bg-emerald-400'} ${!isEditing && 'animate-pulse'}`} />
+                      <span className={`text-xs font-medium ${
+                        isEditing ? 'text-amber-400' : 'text-emerald-400'
+                      }`}>
+                        {isEditing ? 'Edit' : 'Live'}
+                      </span>
+                    </div>
                   </div>
                 ) : (
                   <div className="flex-1">
