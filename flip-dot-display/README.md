@@ -1,5 +1,7 @@
 # 🟡 DotClock - Flip Dot Display Simulator
 
+**Live:** https://flip-dot-display.vercel.app
+
 A sophisticated web-based flip-dot display simulator that recreates the mesmerizing aesthetic of classic electromechanical displays with modern web technologies.
 
 ![Next.js](https://img.shields.io/badge/Next.js-15.5.3-black?style=flat-square&logo=next.js)
